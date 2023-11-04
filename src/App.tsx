@@ -1,16 +1,18 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import { useMemo } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { v4 as uuid } from "uuid";
 import styles from "./App.module.scss";
-import { NewNote } from "./components";
+import { EditNote, NewNote, Note, NoteList } from "./components";
+import { NoteLayout } from "./components/NoteLayout/NoteLayout";
 import { useLocalStorage } from "./hooks";
 import { NoteData, Tag } from "./models";
 import { RawNote } from "./models/NoteModel";
 
-function App() {
+const App = () => {
   const [notes, setNotes] = useLocalStorage<RawNote[]>("NOTES", []);
   const [tags, setTags] = useLocalStorage<Tag[]>("TAGS", []);
+  const navigate = useNavigate();
 
   const notesWithTag = useMemo(() => {
     return notes.map((note) => ({
@@ -24,8 +26,24 @@ function App() {
       ...prevNotes,
       { ...data, id: uuid(), tagIds: tags.map((tag) => tag.id) },
     ]);
+    navigate("/");
   };
-
+  const onUpdateNote = (id: string, { tags, ...data }: NoteData) => {
+    setNotes((prevNotes) => {
+      return prevNotes.map((note) => {
+        if (note.id === id) {
+          return {
+            ...note,
+            ...data,
+            tagIds: tags.map((tag) => tag.id),
+          };
+        } else {
+          return note;
+        }
+      });
+    });
+    navigate("/");
+  };
   const addTag = (tag: Tag) => {
     setTags([...tags, tag]);
   };
@@ -33,7 +51,10 @@ function App() {
   return (
     <div className={styles["container"]}>
       <Routes>
-        <Route path="/" element={<div>Caca.</div>} />
+        <Route
+          path="/"
+          element={<NoteList notes={notesWithTag} availableTags={tags} />}
+        />
         <Route
           path="/new"
           element={
@@ -44,14 +65,23 @@ function App() {
             />
           }
         />
-        <Route path="/:id">
-          <Route index element={<div>Show</div>} />
-          <Route path="edit" element={<div>edit</div>} />
+        <Route path="/:id" element={<NoteLayout notes={notesWithTag} />}>
+          <Route index element={<Note />} />
+          <Route
+            path="edit"
+            element={
+              <EditNote
+                onSubmit={onUpdateNote}
+                onAddTag={addTag}
+                availableTags={tags}
+              />
+            }
+          />
         </Route>
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </div>
   );
-}
+};
 
 export default App;
